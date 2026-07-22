@@ -124,7 +124,7 @@ err_out:
 int crypto_x509_get_sig_len (crypto_x509_t *x509)
 {
   int rc;
-  ASN1_BIT_STRING *sig;
+  const ASN1_BIT_STRING *sig;
 
   sig = X509_get0_pubkey_bitstr (x509);
   if (!sig)
@@ -139,7 +139,7 @@ int crypto_x509_get_sig_len (crypto_x509_t *x509)
       return rc;
     }
 
-  return sig->length;
+  return ASN1_STRING_length(sig);
 }
 
 int crypto_x509_oid_is_pkcs1_sha256 (crypto_x509_t *x509)
@@ -260,7 +260,7 @@ int crypto_pkcs7_signed_hash_verify (crypto_pkcs7_t *pkcs7, crypto_x509_t *x509,
                                      unsigned char *hash, int hash_len)
 {
   int exp_size, md_nid, num_signers, rc = ERR_R_INTERNAL_ERROR;
-  unsigned char *exp_sig;
+  const unsigned char *exp_sig;
   EVP_PKEY *pk;
   EVP_PKEY_CTX *pk_ctx;
   X509_ALGOR *alg;
@@ -344,8 +344,8 @@ int crypto_pkcs7_signed_hash_verify (crypto_pkcs7_t *pkcs7, crypto_x509_t *x509,
           goto out;
         }
 
-      exp_size = signer_info->enc_digest->length;
-      exp_sig = signer_info->enc_digest->data;
+      exp_size = ASN1_STRING_length(signer_info->enc_digest);
+      exp_sig = ASN1_STRING_get0_data(signer_info->enc_digest);
 
       if (exp_size <= 0 || !exp_sig)
         {
