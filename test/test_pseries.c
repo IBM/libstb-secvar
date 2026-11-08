@@ -163,6 +163,48 @@ main (int argc, char **argv)
   tmp = NULL;
   tmp_size = 0;
 
+  /*
+   * an append to an existing but empty (header-only) variable must not move
+   * the stored timestamp backwards
+   */
+  {
+    struct signed_variable_header empty_dbx = { 0 };
+    const struct signed_variable_header *hdr;
+
+    empty_dbx.version = 0;
+    empty_dbx.timestamp.year = cpu_to_le16 (2099);
+    empty_dbx.timestamp.month = 12;
+    empty_dbx.timestamp.day = 31;
+    empty_dbx.timestamp.hour = 23;
+    empty_dbx.timestamp.minute = 59;
+    empty_dbx.timestamp.second = 59;
+
+    memset (&update_req, 0x00, sizeof (update_req_t));
+    update_req.label = DBX_LABEL;
+    update_req.label_size = 6;
+    update_req.allow_unauthenticated = false;
+    update_req.append_update = true;
+    update_req.update_data = dbx_2_auth;
+    update_req.update_data_size = dbx_2_auth_len;
+    update_req.current_data = (uint8_t *) &empty_dbx;
+    update_req.current_data_size = sizeof (empty_dbx);
+    update_req.auth_db.pk = PK_sv;
+    update_req.auth_db.pk_size = PK_sv_len;
+    update_req.auth_db.kek = KEK;
+    update_req.auth_db.kek_size = KEK_size;
+
+    rc = pseries_update_variable (&update_req, &tmp, &tmp_size);
+    assert_rc (SV_SUCCESS);
+    assert (tmp_size == sizeof (empty_dbx) + dbx_512_b_esl_len);
+    assert (memcmp (tmp + sizeof (empty_dbx), dbx_512_b_esl, dbx_512_b_esl_len) == 0);
+    hdr = (const struct signed_variable_header *) tmp;
+    assert (memcmp (&hdr->timestamp, &empty_dbx.timestamp, sizeof (empty_dbx.timestamp)) == 0);
+
+    libstb_free (tmp);
+    tmp = NULL;
+    tmp_size = 0;
+  }
+
   memset (&update_req, 0x00, sizeof (update_req_t));
   update_req.label = KEK_LABEL;
   update_req.label_size = 6;

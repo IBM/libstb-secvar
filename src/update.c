@@ -366,7 +366,15 @@ pseries_apply_update (const auth_data_t *auth_data, uint8_t **new_esl_data,
           *new_esl_data = NULL;
         }
 
-      *new_time = update_time;
+      /*
+       * an append to an existing but empty variable must not move the
+       * timestamp backwards, as appends skip the timestamp check above
+       */
+      if (is_append && auth_data->current_time != NULL &&
+          !is_after (&update_time, auth_data->current_time))
+        *new_time = *auth_data->current_time;
+      else
+        *new_time = update_time;
     }
 
   return SV_SUCCESS;
